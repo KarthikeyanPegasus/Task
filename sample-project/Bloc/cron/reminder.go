@@ -26,7 +26,8 @@ func (s *CronServer) NewCronJob() {
 
 func (s *CronServer) DoReminder() error {
 	// list all tasks that need to be reminded
-	query := `SELECT id, title, description, priority, datetime FROM tasks WHERE datetime < $1;`
+	query := `SELECT id, title, description, priority, datetime FROM "Tasks".tasks WHERE datetime < $1;`
+	fmt.Println("DoReminder")
 
 	rows, err := s.db.Query(query, time.Now().Add(5*time.Minute).Format(time.RFC3339))
 	if err != nil {
