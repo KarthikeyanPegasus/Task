@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sample-project/cron"
 	"sample-project/database"
 	"sample-project/handler"
 	"sample-project/route"
@@ -12,6 +13,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	cronServer := cron.NewCronServer(db)
+	go cronServer.NewCronJob()
 
 	server := handler.NewTaskServer(db)
 
