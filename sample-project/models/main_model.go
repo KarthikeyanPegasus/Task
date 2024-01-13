@@ -74,5 +74,4 @@ type TaskService interface {
 	UpdateTask(req UpdateTaskRequest) (UpdateTaskResponse, error)
 	DeleteTask(req DeleteTaskRequest) error
 	GetTask(req GetTaskRequest) (GetTaskResponse, error)
-	ListTask(req ListTaskRequest) (ListTaskResponse, error)
 }

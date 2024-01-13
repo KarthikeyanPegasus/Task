@@ -9,8 +9,7 @@ import (
 
 func InitRoute(server *handler.TaskServer) {
 	r := chi.NewRouter()
-	r.Get("/task", server.GetTask)
-	r.Get("/tasks", server.ListTasks)
+	r.Get("/tasks", server.GetTask)
 	r.Post("/tasks", server.CreateTask)
 	r.Put("/tasks", server.UpdateTask)
 	r.Delete("/tasks", server.DeleteTask)

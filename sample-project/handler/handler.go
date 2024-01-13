@@ -26,7 +26,7 @@ func (s *TaskServer) GetTask(writer http.ResponseWriter, request *http.Request) 
 
 	// Handle BLOC here
 
-	query := `SELECT id, title, description, priority, datetime FROM tasks WHERE id = $1;`
+	query := `SELECT id, title, description, priority, datetime FROM "Tasks".tasks WHERE id = $1;`
 
 	var task models.Task
 	err := s.db.QueryRow(query, getTaskRequest.ID).Scan(
@@ -42,54 +42,6 @@ func (s *TaskServer) GetTask(writer http.ResponseWriter, request *http.Request) 
 	}
 
 	if err := json.NewEncoder(writer).Encode(models.GetTaskResponse{Task: task}); err != nil {
-		http.Error(writer, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-}
-
-func (s *TaskServer) ListTasks(writer http.ResponseWriter, request *http.Request) {
-	var listTaskRequest models.ListTaskRequest
-	if err := json.NewDecoder(request.Body).Decode(&listTaskRequest); err != nil {
-		http.Error(writer, "Invalid JSON format", http.StatusBadRequest)
-		return
-	}
-
-	// Handle BLOC here
-	ids := ""
-	for i, id := range listTaskRequest.Ids {
-		if i == len(listTaskRequest.Ids)-1 {
-			ids += id
-			break
-		}
-		ids += id + `, `
-	}
-
-	query := `SELECT id, title, description, priority, datetime FROM tasks WHERE ID in ($1);`
-
-	rows, err := s.db.Query(query, ids)
-	if err != nil {
-		http.Error(writer, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	var tasks []*models.Task
-	for rows.Next() {
-		var task *models.Task
-		err := rows.Scan(
-			&task.ID,
-			&task.Title,
-			&task.Description,
-			&task.Priority,
-			&task.DateTime,
-		)
-		if err != nil {
-			http.Error(writer, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		tasks = append(tasks, task)
-	}
-
-	if err := json.NewEncoder(writer).Encode(models.ListTaskResponse{Tasks: tasks}); err != nil {
 		http.Error(writer, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -112,8 +64,7 @@ func (s *TaskServer) CreateTask(writer http.ResponseWriter, request *http.Reques
 
 	id := generateId()
 	_, err = s.db.Exec(
-		//"INSERT INTO Tasks.tasks (id, title, description, priority, datetime) VALUES ($1, $2, $3,$4, $5)",
-		"select * from tasks",
+		`INSERT INTO "Tasks".tasks (id, title, description, priority, datetime) VALUES ($1, $2, $3,$4, $5)`,
 		id,
 		createTaskRequest.Title,
 		createTaskRequest.Description,
@@ -138,26 +89,38 @@ func (s *TaskServer) UpdateTask(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	//Have to handle BLOC here
+	params := make([]interface{}, 0, len(updateTaskRequest.UpdateMask)+1)
+	updateRequestMap := make(map[string]interface{})
+	for _, mask := range updateTaskRequest.UpdateMask {
+		if mask == "title" {
+			updateRequestMap["title"] = updateTaskRequest.Title
+		}
+		if mask == "description" {
+			updateRequestMap["description"] = updateTaskRequest.Description
+		}
+		if mask == "priority" {
+			updateRequestMap["priority"] = updateTaskRequest.Priority
+		}
+		if mask == "time" {
+			updateRequestMap["time"] = updateTaskRequest.DateTime
+		}
+	}
 
-	query := `UPDATE tasks SET `
+	query := `UPDATE "Tasks".tasks SET `
 	for i, mask := range updateTaskRequest.UpdateMask {
 		if i == len(updateTaskRequest.UpdateMask)-1 {
 			query += mask + ` = $` + strconv.Itoa(i+1)
-			break
+		} else {
+			query += mask + ` = $` + strconv.Itoa(i+1) + `, `
 		}
-		query += mask + ` = $` + strconv.Itoa(i+1) + `, `
+		params = append(params, updateRequestMap[mask])
 	}
-	query += ` WHERE id = $` + updateTaskRequest.ID + `;`
+	query += ` WHERE id = $` + strconv.Itoa(len(updateTaskRequest.UpdateMask)+1) + `;`
+	params = append(params, updateTaskRequest.ID)
 
-	_, err := s.db.Exec(
-		query,
-		updateTaskRequest.Title,
-		updateTaskRequest.Description,
-		updateTaskRequest.Priority,
-		updateTaskRequest.DateTime,
-		updateTaskRequest.ID,
-	)
+	_, err := s.db.Exec(query, params...)
 	if err != nil {
+		json.NewEncoder(writer).Encode(err)
 		http.Error(writer, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -177,7 +140,7 @@ func (s *TaskServer) DeleteTask(writer http.ResponseWriter, request *http.Reques
 
 	// Handle BLOC here
 
-	_, err := s.db.Exec("DELETE FROM tasks WHERE id = $1", deleteTaskRequest.ID)
+	_, err := s.db.Exec(`DELETE FROM "Tasks".tasks WHERE id = $1`, deleteTaskRequest.ID)
 	if err != nil {
 		http.Error(writer, "Internal server error", http.StatusInternalServerError)
 		return
