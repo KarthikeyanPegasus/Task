@@ -1,8 +1,12 @@
 package cache
 
 import (
+	"context"
+	"encoding/json"
 	"github.com/go-redis/redis/v8"
 	"os"
+	"sample-project/models"
+	"time"
 )
 
 type Cache struct {
@@ -23,10 +27,24 @@ func RedisInit() *redis.Client {
 	return redisClient
 }
 
-func (c *Cache) GetCache(taskId string) (string, error) {
-	return c.redisClient.Get(c.redisClient.Context(), taskId).Result()
+func (c *Cache) GetCache(taskId string) (*models.Task, error) {
+	msg := c.redisClient.Get(c.redisClient.Context(), taskId).Val()
+	task := &models.Task{}
+	err := json.Unmarshal([]byte(msg), task)
+	if err != nil {
+		return nil, err
+	}
+	return task, nil
 }
 
-func (c *Cache) SetCache(taskId string, task string) error {
-	return c.redisClient.Set(c.redisClient.Context(), taskId, task, 0).Err()
+func (c *Cache) SetCache(taskId string, task *models.Task) error {
+	t, err := json.Marshal(task)
+	if err != nil {
+		return err
+	}
+	return c.redisClient.Set(context.Background(), taskId, t, 5*time.Minute).Err()
+}
+
+func (c *Cache) DelCache(taskId string) error {
+	return c.redisClient.Del(context.Background(), taskId).Err()
 }

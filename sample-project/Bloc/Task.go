@@ -18,6 +18,11 @@ func NewTaskServer(db *sql.DB, c *cache.Cache) *TaskServer {
 }
 
 func (s *TaskServer) GetTask(request *models.GetTaskRequest) (*models.GetTaskResponse, error) {
+	// check cache first
+	if task, err := s.c.GetCache(request.ID); err == nil {
+		return &models.GetTaskResponse{Task: *task}, nil
+	}
+
 	query := `SELECT id, title, description, priority, datetime FROM "Tasks".tasks WHERE id = $1;`
 
 	var task models.Task
@@ -28,6 +33,12 @@ func (s *TaskServer) GetTask(request *models.GetTaskRequest) (*models.GetTaskRes
 		&task.Priority,
 		&task.DateTime,
 	)
+	if err != nil {
+		return &models.GetTaskResponse{}, err
+	}
+
+	// set cache
+	err = s.c.SetCache(request.ID, &task)
 	if err != nil {
 		return &models.GetTaskResponse{}, err
 	}
@@ -55,6 +66,14 @@ func (s *TaskServer) CreateTask(request *models.CreateTaskRequest) (*models.Crea
 	if err != nil {
 		return &models.CreateTaskResponse{}, err
 	}
+
+	err = s.c.SetCache(id, &models.Task{
+		ID:          id,
+		Title:       request.Title,
+		Description: request.Description,
+		Priority:    request.Priority,
+		DateTime:    datetime,
+	})
 
 	return &models.CreateTaskResponse{ID: id}, nil
 }
@@ -95,6 +114,8 @@ func (s *TaskServer) UpdateTask(request *models.UpdateTaskRequest) (*models.Upda
 	if err != nil {
 		return &models.UpdateTaskResponse{}, err
 	}
+
+	s.c.DelCache(request.ID)
 
 	return &models.UpdateTaskResponse{ID: request.ID}, nil
 }
