@@ -1,14 +1,16 @@
 package main
 
 import (
-	"sample-project/cron"
+	"sample-project/Bloc"
+	"sample-project/Bloc/cron"
+	"sample-project/cache"
 	"sample-project/database"
 	"sample-project/handler"
 	"sample-project/route"
 )
 
 func main() {
-	// init cache and database
+	redis := cache.RedisInit()
 	db, err := database.Init()
 	if err != nil {
 		panic(err)
@@ -17,7 +19,9 @@ func main() {
 	cronServer := cron.NewCronServer(db)
 	go cronServer.NewCronJob()
 
-	server := handler.NewTaskServer(db)
+	cache := cache.NewCache(redis)
+	BlocServer := Bloc.NewTaskServer(db, cache)
+	server := handler.NewHandler(BlocServer)
 
 	route.InitRoute(server)
 }

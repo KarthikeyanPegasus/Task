@@ -7,7 +7,7 @@ import (
 	"sample-project/handler"
 )
 
-func InitRoute(server *handler.TaskServer) {
+func InitRoute(server *handler.Handler) {
 	r := chi.NewRouter()
 	r.Get("/tasks", server.GetTask)
 	r.Post("/tasks", server.CreateTask)
